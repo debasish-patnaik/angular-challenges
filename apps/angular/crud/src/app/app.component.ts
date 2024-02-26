@@ -1,35 +1,50 @@
-import { CommonModule } from '@angular/common';
-import { Component, OnInit, Signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
+import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { injectQuery } from '@tanstack/angular-query-experimental';
+import { lastValueFrom } from 'rxjs';
+import { TodoItemComponent } from './todo-item.component';
+import { todoKeys } from './todo.factory';
 import { Todo } from './todo.model';
 import { TodoService } from './todo.service';
 
 @Component({
   standalone: true,
-  imports: [CommonModule],
+  imports: [MatProgressSpinnerModule, TodoItemComponent],
   selector: 'app-root',
   template: `
-    <div *ngFor="let todo of todos()">
-      {{ todo.title }}
-      <button (click)="update(todo)">Update</button>
-      <button (click)="delete(todo.id)">Delete</button>
-    </div>
+    @switch (todos.status()) {
+      @case ('pending') {
+        <mat-spinner [diameter]="20" color="blue" />
+      }
+      @case ('error') {
+        Error has occured: {{ todos.error() }}
+      }
+      @default {
+        <div class="todo-container">
+          @for (todo of todos.data(); track todo.id) {
+            <app-todo-item [todo]="todo" />
+          }
+        </div>
+      }
+    }
   `,
-  styles: [],
+  styles: [
+    `
+      .todo-container {
+        display: flex;
+        flex-direction: column;
+      }
+    `,
+  ],
+  changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class AppComponent implements OnInit {
-  todos: Signal<Todo[]> = this.todoService.todos;
+export class AppComponent {
+  private todoService = inject(TodoService);
 
-  constructor(private todoService: TodoService) {}
-
-  ngOnInit(): void {
-    this.todoService.getAllTodos();
-  }
-
-  update(todo: Todo) {
-    this.todoService.updateTodo(todo);
-  }
-
-  delete(id: number) {
-    this.todoService.deleteTodo(id);
-  }
+  todos = injectQuery(() => ({
+    queryKey: todoKeys.all,
+    queryFn: async (): Promise<Array<Todo>> => {
+      return lastValueFrom(this.todoService.getAllTodos());
+    },
+  }));
 }
