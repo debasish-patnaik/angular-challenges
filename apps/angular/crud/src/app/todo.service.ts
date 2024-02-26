@@ -42,4 +42,12 @@ export class TodoService {
         );
       });
   }
+
+  public deleteTodo(id: number) {
+    this.http
+      .delete<void>(`https://jsonplaceholder.typicode.com/todos/${id}`)
+      .subscribe(() => {
+        this.#todos.update((todos) => todos.filter((todo) => todo.id !== id));
+      });
+  }
 }
